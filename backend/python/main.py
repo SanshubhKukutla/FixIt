@@ -49,7 +49,7 @@ def send_email():
     message["From"] = sender_email
     message["To"] = receiver_email
     message["Subject"] = "Test email from Python Flask Server"
-    message.attach(MIMEText("This is a test email sent from Python running in a Flask server.", "plain"))
+    message.attach(MIMEText("DEMO LINK: https://fixit.pleom.com/ar-code/ar.html", "plain"))
     
     try:
         # Send email
@@ -161,7 +161,6 @@ def upload_image():
 def serve_index():
     print("Serving index.html from:", os.path.abspath('.'))
     return send_from_directory('.', 'index.html')
-
 
 # Start Flask app
 if __name__ == '__main__':
