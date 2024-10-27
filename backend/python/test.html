@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Client</title>
+    <style>
+        #messages {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <h2>WebSocket Messages</h2>
+    <div id="messages"></div>
+
+    <script>
+        // Connect to WebSocket server
+        const ws = new WebSocket('ws://localhost:8765');
+        const messagesDiv = document.getElementById('messages');
+
+        // WebSocket event handlers
+        ws.onopen = function() {
+            addMessage('Connected to WebSocket server');
+        };
+
+        ws.onclose = function() {
+            addMessage('Disconnected from WebSocket server');
+        };
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            addMessage('Received: ' + JSON.stringify(data));
+        };
+
+        ws.onerror = function(error) {
+            addMessage('Error: ' + error.message);
+        };
+
+        // Helper function to add messages to the display
+        function addMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Test function to send POST request
+        async function testPostRequest() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'Test message',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+                const result = await response.json();
+                addMessage('POST request sent: ' + JSON.stringify(result));
+            } catch (error) {
+                addMessage('Error sending POST request: ' + error.message);
+            }
+        }
+    </script>
+
+    <button onclick="testPostRequest()">Send Test POST Request</button>
+</body>
+</html>
