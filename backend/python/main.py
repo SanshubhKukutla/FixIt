@@ -150,21 +150,20 @@ def get_image():
     current_step = 1
     current_prompt = "user said this"
     prompt = f"""
-    You are given an image of an instructional manual which contains four steps ordered from top to bottom. The user is currently on {current_step}.
-    You 
+    You are analyzing an instructional manual image for an assembly guide. The user is currently on step {current_step}.
+    Provide the next instruction or advice on how to proceed with the assembly based on the current step.
 
-    The user recently said the following: {current_prompt}
-    The user also said the following previously as well. {" ".join(history)}
+    Recent user statement: "{current_prompt}"
+    Previous user statements: {" ".join(history)}
+
+    Respond with the next instruction or feedback in the following JSON format:
+    {{
+        "step": {current_step},
+        "user_feedback": "{current_prompt}",
+        "next_instruction": "Your detailed advice here"
+    }}
+    Only respond in JSON format.
     """
-
-    print(data)
-    '''
-    image = PIL.Image.open("image.png")
-    with open("image.png", "rb") as image_file:
-        image_data = base64.b64encode(image_file.read()).decode('utf-8')
-        output = run_claude(image_data, prompt)
-        return output
-    '''
     history.append(current_prompt) 
     return jsonify({
         "body": {"instructions": "okay it's because you did not screw it in"}
@@ -189,7 +188,6 @@ def upload_image():
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/', methods=['GET'])
 def test():
