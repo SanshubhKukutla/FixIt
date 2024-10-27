@@ -2,13 +2,17 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 from flask_cors import CORS
 from pymongo import MongoClient
-import base64
+import base64, os
+from dotenv import load_dotenv
 
+load_dotenv()
+
+MONGO = os.getenv('MONGO')
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Connect to MongoDB using your connection string
-client = MongoClient('mongodb+srv://arnavt2955:MryIVYfDzpDvxY9Z@cluster0.z8wnd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+client = MongoClient()
 db = client['imagedb']
 collection = db['images']
 
