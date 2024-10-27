@@ -26,6 +26,18 @@
 
 let CURRENT_STEP = 1;
 
+const urlParams = new URLSearchParams(window.location.search);
+try {
+	CURRENT_STEP = urlParams.get('step');
+	CURRENT_STEP = parseInt(CURRENT_STEP);
+} catch(e) {
+	CURRENT_STEP = 1;
+}
+
+if (isNaN(CURRENT_STEP)) {
+	CURRENT_STEP = 1;
+}
+
 
 var scene, camera, renderer, clock, deltaTime, totalTime;
 
@@ -306,27 +318,6 @@ async function initialize()
 															}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 														});
 													});
 												});
@@ -369,6 +360,7 @@ function animate()
 	render();
 
 	if (CURRENT_STEP == 1) {
+		if (markerRoot1.children.length != 2) return;
         let meshB = markerRoot1.children[1];
 		if (meshB.position.x < 1) {
 			meshB.position.x = 3;
@@ -376,6 +368,7 @@ function animate()
 			meshB.position.x -= 0.01;
 		}
     } else if (CURRENT_STEP == 2) {
+		if (markerRoot1.children.length != 2) return;
 		let meshB = markerRoot1.children[1];
 		if (meshB.position.x < -2) {
 			meshB.position.x = 3;
@@ -383,6 +376,7 @@ function animate()
 			meshB.position.x -= 0.01;
 		}
 	} else if (CURRENT_STEP == 3) {
+		if (markerRoot1.children.length != 2) return;
 		let meshB = markerRoot1.children[1];
 		if (meshB.position.x < 1) {
 			meshB.position.x = 3;
@@ -390,9 +384,35 @@ function animate()
 			meshB.position.x -= 0.01;
 		}
 	} else {
+		if (markerRoot1.children.length != 1) return;
 		let meshB = markerRoot1.children[0];
 	}
 }
+
+
+		const ws = new WebSocket('ws://172.210.16.114:8765');
+        const messagesDiv = document.getElementById('messages');
+
+        // WebSocket event handlers
+        ws.onopen = function() {
+            console.log('Connected to WebSocket server');
+        };
+
+        ws.onclose = function() {
+            console.log('Disconnected from WebSocket server');
+        };
+
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (CURRENT_STEP != data.new_step) {
+				window.location.href = "https://fixit.pleom.com/ar-code/ar.html?step=" + data.new_step;
+			}
+        };
+
+        ws.onerror = function(error) {
+            
+        };
+        
 
 </script>
 
