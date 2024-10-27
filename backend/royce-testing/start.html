@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Side</title>
+    <style>
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Company Side</h1>
+        <input type="file" id="imageInput" accept="image/*">
+        <div>
+            <canvas id="sourceCanvas"></canvas>
+            <canvas id="outputCanvas"></canvas>
+        </div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        const GEMINI_API_KEY = [
+    "AIzaSyAg216xspoLnCCe1Xn8vRsGw7xk-A76wd4",
+    "AIzaSyBw4eYKGJECwm99vk9pz541Z-ydq0MVZDk",
+    "AIzaSyBTZU2j_3ebmNLS2ryKugC-t96yC9XtDUg",
+];
+
+function getRandomGeminiApiKey() {
+    const apiKeyIndex = Math.floor(Math.random() * GEMINI_API_KEY.length);
+    return GEMINI_API_KEY[apiKeyIndex];
+}
+
+
+        async function processImage(img, processedBoxes) {
+            let finishedResponse = [];
+            for(let i = 0; i < processedBoxes.length; i++) {
+                finishedResponse.push([]);
+            }
+
+            const sourceCanvas = document.createElement('canvas');
+            sourceCanvas.width = img.width;
+            sourceCanvas.height = img.height;
+            const sourceCtx = sourceCanvas.getContext('2d');
+            sourceCtx.drawImage(img, 0, 0);
+
+            const outputCanvas = document.getElementById('outputCanvas');
+            outputCanvas.width = img.width;
+            outputCanvas.height = img.height;
+            const outputCtx = outputCanvas.getContext('2d');
+            outputCtx.drawImage(img, 0, 0);
+
+            const imageData = sourceCtx.getImageData(0, 0, img.width, img.height);
+            const width = img.width;
+            const height = img.height;
+
+            // Convert to grayscale
+            const grayData = new Uint8ClampedArray(width * height);
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const r = imageData.data[i];
+                const g = imageData.data[i + 1];
+                const b = imageData.data[i + 2];
+                grayData[i/4] = 0.299 * r + 0.587 * g + 0.114 * b;
+            }
+
+            // Threshold to binary
+            const threshold = 128;
+            const binaryData = new Uint8ClampedArray(width * height);
+            for (let i = 0; i < grayData.length; i++) {
+                binaryData[i] = grayData[i] < threshold ? 255 : 0;
+            }
+
+            const visited = new Set();
+            const objects = [];
+
+            // Connected component labeling
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const pos = y * width + x;
+                    if (binaryData[pos] === 255 && !visited.has(pos)) {
+                        const object = {
+                            points: [],
+                            bounds: {
+                                minX: x,
+                                maxX: x,
+                                minY: y,
+                                maxY: y
+                            }
+                        };
+
+                        const stack = [[x, y]];
+                        while (stack.length > 0) {
+                            const [currX, currY] = stack.pop();
+                            const currPos = currY * width + currX;
+
+                            if (visited.has(currPos)) continue;
+
+                            visited.add(currPos);
+                            object.points.push([currX, currY]);
+
+                            object.bounds.minX = Math.min(object.bounds.minX, currX);
+                            object.bounds.maxX = Math.max(object.bounds.maxX, currX);
+                            object.bounds.minY = Math.min(object.bounds.minY, currY);
+                            object.bounds.maxY = Math.max(object.bounds.maxY, currY);
+
+                            const neighbors = [
+                                [currX + 1, currY],
+                                [currX - 1, currY],
+                                [currX, currY + 1],
+                                [currX, currY - 1]
+                            ];
+
+                            for (const [nextX, nextY] of neighbors) {
+                                if (nextX >= 0 && nextX < width &&
+                                    nextY >= 0 && nextY < height) {
+                                    const nextPos = nextY * width + nextX;
+                                    if (binaryData[nextPos] === 255 && !visited.has(nextPos)) {
+                                        stack.push([nextX, nextY]);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (object.points.length > 50) {
+                            objects.push(object);
+                        }
+                    }
+                }
+            }
+
+            outputCtx.strokeStyle = '#009600';
+            outputCtx.lineWidth = 5;
+
+            function getArea(obj) {
+                return (obj.bounds.maxX - obj.bounds.minX) * (obj.bounds.maxY - obj.bounds.minY);
+            }
+
+            function isBoundsNear(royce, obj, distance = 10) {
+                return (
+                    obj.bounds.minX <= royce.xmax + distance &&
+                    obj.bounds.maxX >= royce.xmin - distance &&
+                    obj.bounds.minY <= royce.ymax + distance &&
+                    obj.bounds.maxY >= royce.ymin - distance
+                );
+            }
+
+            const minArea = 100;
+            const maxArea = img.width * img.height * 0.3;
+
+            objects.forEach((obj) => {
+                let success = false;
+                let successInt = 0;
+                for (let ra = 0; ra < processedBoxes.length; ra++) {
+                    if (isBoundsNear(processedBoxes[ra], obj)) {
+                        success = true;
+                        successInt = ra;
+                    }
+                }
+
+                if (success) {
+                    const area = getArea(obj);
+                    if (area >= minArea && area <= maxArea) {
+                        outputCtx.beginPath();
+                        outputCtx.rect(
+                            obj.bounds.minX,
+                            obj.bounds.minY,
+                            obj.bounds.maxX - obj.bounds.minX,
+                            obj.bounds.maxY - obj.bounds.minY
+                        );
+                        outputCtx.stroke();
+
+                        let tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = obj.bounds.maxX - obj.bounds.minX;
+                        tempCanvas.height = obj.bounds.maxY - obj.bounds.minY;
+                        let tempCtx = tempCanvas.getContext('2d');
+
+                        
+
+
+
+                        tempCtx.drawImage(
+                            img,
+                            obj.bounds.minX,
+                            obj.bounds.minY,
+                            obj.bounds.maxX - obj.bounds.minX,
+                            obj.bounds.maxY - obj.bounds.minY,
+                            0,
+                            0,
+                            obj.bounds.maxX - obj.bounds.minX,
+                            obj.bounds.maxY - obj.bounds.minY
+                        );
+
+                        tempCtx.font = '12px Arial';
+                        tempCtx.fillStyle = 'rgba(255, 255, 255, 1)';
+                        tempCtx.textBaseline = 'top';
+                        tempCtx.textAlign = 'left';
+                        tempCtx.fillText("IMAGE 2", 2, 2);
+
+                        finishedResponse[successInt].push(tempCanvas.toDataURL('image/png'));
+                    }
+                }
+            });
+
+            return finishedResponse;
+        }
+
+        function scaleCoordinates(box, imageWidth, imageHeight) {
+            const normalizedBox = box.map(coord => coord / 1000);
+            return [
+                normalizedBox[0] * imageHeight,
+                normalizedBox[1] * imageWidth,
+                normalizedBox[2] * imageHeight,
+                normalizedBox[3] * imageWidth
+            ];
+        }
+
+        async function returnBoxesFromImage(image, boundingBoxes) {
+            boundingBoxes.forEach((box, index) => {
+                const [ymin, xmin, ymax, xmax] = scaleCoordinates(box, image.width, image.height);
+                boundingBoxes[index] = { ymin, xmin, ymax, xmax };
+            });
+            return boundingBoxes;
+        }
+
+        async function analyzeImage(base64Image) {
+            const API_KEY = getRandomGeminiApiKey();
+            const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            {text: "Return a bounding box for each of the steps in order from first to last. [ymin, xmin, ymax, xmax]."},
+                            {inlineData: {data: base64Image, mimeType: "image/png"}}
+                        ]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+            const text = data.candidates[0].content.parts[0].text;
+            const regex = /\[(\d+(?:, \d+)*)\]/g;
+            const matches = text.match(regex);
+            
+            return matches.map(match => {
+                return match.slice(1, -1).split(', ').map(Number);
+            });
+        }
+
+        function displayImages(mainImageBase64, subImageBase64) {
+  const mainImage = document.createElement('img');
+  mainImage.src = 'data:image/png;base64,' + mainImageBase64;
+
+  const subImage = document.createElement('img');
+  subImage.src = 'data:image/png;base64,' + subImageBase64;
+
+  // Wait for images to load
+  Promise.all([new Promise((resolve) => {
+    mainImage.onload = resolve;
+  }), new Promise((resolve) => {
+    subImage.onload = resolve;
+  })]).then(() => {
+    // Create canvas elements
+    const mainCanvas = document.createElement('canvas');
+    const subCanvas = document.createElement('canvas');
+
+    // Set canvas dimensions
+    mainCanvas.width = mainImage.width;
+    mainCanvas.height = mainImage.height;
+    subCanvas.width = subImage.width;
+    subCanvas.height = subImage.height;
+
+    // Draw images on canvas
+    const mainCtx = mainCanvas.getContext('2d');
+    const subCtx = subCanvas.getContext('2d');
+    mainCtx.drawImage(mainImage, 0, 0);
+    subCtx.drawImage(subImage, 0, 0);
+
+    // Append canvases to body
+    document.body.appendChild(mainCanvas);
+    document.body.appendChild(subCanvas);
+  });
+}
+        async function analyzeSubImage(mainImage, subImage) {
+            displayImages(mainImage, subImage);
+            const API_KEY = getRandomGeminiApiKey();
+            const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            
+            const responseA = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            {text: "Is this image an arrow? Return with YES or NO"},
+                            {inlineData: {data: subImage, mimeType: "image/png"}}
+                        ]
+                    }]
+                })
+            });
+
+            const dataA = await responseA.json();
+            let b = dataA.candidates[0].content.parts[0].text;
+            console.log(b);
+
+            if (b.includes("NO")) {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                {text: "FIRST, identify what is in the smaller image. SECOND, identify the smaller image within the bigger image. THIRD, answer the question of whether the smaller image is moving in the bigger image, answer with UP, DOWN, LEFT, RIGHT, or NOT MOVING."},
+                                {inlineData: {data: mainImage, mimeType: "image/png"}},
+                                {inlineData: {data: subImage, mimeType: "image/png"}}
+                            ]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                return data.candidates[0].content.parts[0].text;
+            }
+            
+        }
+
+        
+        async function main(img) {
+            // Display source image
+            const sourceCanvas = document.getElementById('sourceCanvas');
+            sourceCanvas.width = img.width;
+            sourceCanvas.height = img.height;
+            const sourceCtx = sourceCanvas.getContext('2d');
+            sourceCtx.drawImage(img, 0, 0);
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(img, 0, 0);
+            const base64Image = tempCanvas.toDataURL('image/png').split(',')[1];
+
+            let boundingBoxes, processedBoxes;
+            let retries = 0;
+            const maxRetries = 5;
+            let success = false;
+
+            while (!success && retries < maxRetries) {
+                try {
+                    boundingBoxes = await analyzeImage(base64Image);
+                    processedBoxes = await returnBoxesFromImage(img, boundingBoxes);
+                    success = true;
+                } catch (error) {
+                    retries++;
+                    console.error(`Error occurred, retrying (${retries}/${maxRetries}):`, error);
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+
+            if (!success) {
+                console.error(`Failed to retrieve bounding boxes after ${maxRetries} retries.`);
+                return;
+            }
+
+            const output = await processImage(img, processedBoxes);
+
+
+            let step = 0;
+            let curr_obj = 2;
+
+            obj = processedBoxes[step];
+
+
+            let tempCanvasA = document.createElement('canvas');
+            tempCanvasA.width = obj.xmax - obj.xmin;
+            tempCanvasA.height = obj.ymax - obj.ymin;
+            let tempCtxA = tempCanvasA.getContext('2d');
+
+            obj.xmin -= 10;
+            obj.xmax += 10;
+            obj.ymin -= 10;
+            obj.ymax += 10;
+
+            tempCtxA.drawImage(
+                img,
+                obj.xmin,
+                obj.ymin,
+                obj.xmax - obj.xmin,
+                obj.ymax - obj.ymin,
+                0,
+                0,
+                obj.xmax - obj.xmin,
+                obj.ymax - obj.ymin
+            );
+
+
+            tempCtxA.font = '12px Arial';
+            tempCtxA.fillStyle = 'rgba(255, 255, 255, 1)';
+            tempCtxA.textBaseline = 'top';
+            tempCtxA.textAlign = 'left';
+            tempCtxA.fillText("IMAGE 1", 2, 2);
+
+            let particularStepImage = tempCanvasA.toDataURL('image/png').split(',')[1];
+
+            document.getElementsByTagName("body")[0].append(tempCanvasA);
+
+            const result = await analyzeSubImage(particularStepImage, output[step][curr_obj].split(',')[1]);
+            document.getElementById('result').textContent = result;
+            
+        }
+
+        document.getElementById('imageInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            await new Promise(resolve => img.onload = resolve);
+
+            /*
+            // Scale down the image
+            const maxWidth = 800; // adjust to desired max width
+            const maxHeight = 600; // adjust to desired max height
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Calculate scaled dimensions
+            if (width > maxWidth || height > maxHeight) {
+                const aspectRatio = width / height;
+                if (aspectRatio > maxWidth / maxHeight) {
+                    width = maxWidth;
+                    height = Math.round(width / aspectRatio);
+                } else {
+                    height = maxHeight;
+                    width = Math.round(height * aspectRatio);
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+            // Get scaled image
+            const scaledImg = new Image();
+            scaledImg.src = canvas.toDataURL();
+            await new Promise(resolve => scaledImg.onload = resolve);
+
+            // Call main with scaled image */
+            await main(img);
+        });
+    </script>
+</body>
+</html>
