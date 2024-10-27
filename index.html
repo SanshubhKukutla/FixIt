@@ -97,27 +97,56 @@
         }
 
         async function takePhoto() {
-            video.style.display = "none"
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0);
+    video.style.display = "none";
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
 
-            const dataURL = canvas.toDataURL('image/png');
-                    const imageLoadPromise = new Promise((resolve) => {
-                const image = new Image();
-                image.onload = () => resolve(image);
-                image.src = dataURL;
-            });
+    const dataURL = canvas.toDataURL('image/png');
+    const base64Image = dataURL.split(',')[1]; // Get base64 data without prefix
 
-            // Wait for image to load before proceeding
-            const img = await imageLoadPromise;
-            console.log(img);
+    // Wait for 2 seconds before changing the screen
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-            await main(img);
-        }
+    // Create a fullscreen overlay
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'green';
+    overlay.style.display = 'flex';
+    overlay.style.justifyContent = 'center';
+    overlay.style.alignItems = 'center';
+    overlay.style.zIndex = '9999';
+
+    // Create text element with Arial font
+    const text = document.createElement('h1');
+    text.textContent = 'Submitted';
+    text.style.color = 'white';
+    text.style.fontSize = '4rem';
+    text.style.fontFamily = 'Arial, sans-serif';
+    text.style.fontWeight = 'bold';
+
+    // Append text to overlay
+    overlay.appendChild(text);
+
+    // Append overlay to body
+    document.body.appendChild(overlay);
+
+    // Wait for 3 seconds
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Remove overlay
+    document.body.removeChild(overlay);
+
+    // Continue with the upload
+    uploadImageToMongoDB(base64Image);
+}
 
         takePhotoButton.addEventListener('click', takePhoto);
         startCamera();
@@ -432,7 +461,29 @@ function getRandomGeminiApiKey() {
             }
             
         }
+        async function uploadImageToMongoDB(base64Image) {
+    try {
+        // Change the URL to point to your Flask backend server
+        const response = await fetch('https://fixit-server.nextgenfile.com/upload_image', {  // Changed URL
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: base64Image })
+        });
 
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Image uploaded to MongoDB:', result.insertedId);
+        return result;
+    } catch (error) {
+        console.error('Error uploading to MongoDB:', error);
+        return null;
+    }
+}
         
         async function main(img) {
             console.log(img.width);
@@ -449,6 +500,7 @@ function getRandomGeminiApiKey() {
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(img, 0, 0);
             const base64Image = tempCanvas.toDataURL('image/png').split(',')[1];
+            await uploadImageToMongoDB(base64Image);
 
             let boundingBoxes, processedBoxes;
             let retries = 0;
