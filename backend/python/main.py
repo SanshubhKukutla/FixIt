@@ -48,7 +48,7 @@ def send_email():
     message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = receiver_email
-    message["Subject"] = "Test email from Python Flask Server"
+    message["Subject"] = "Python Server Email"
     message.attach(MIMEText("DEMO LINK: https://fixit.pleom.com/ar-code/ar.html", "plain"))
     
     try:
@@ -120,7 +120,7 @@ def process_image():
         url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {YOUR_API_KEY}"  # Add your API key here
+            "Authorization": f"Bearer {"AIzaSyAg216xspoLnCCe1Xn8vRsGw7xk-A76wd4"}"  # Add your API key here
         }
         payload = {"image": image_data}
 
