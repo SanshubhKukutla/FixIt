@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<head>
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<title>AR Viewer</title>
+	<script src='ar-js/js/three.js'></script>
+	<script src="ar-js/jsartoolkit5/artoolkit.min.js"></script>
+	<script src="ar-js/jsartoolkit5/artoolkit.api.js"></script>
+	<script src="ar-js/threex/threex-artoolkitsource.js"></script>
+	<script src="ar-js/threex/threex-artoolkitcontext.js"></script>
+	<script src="ar-js/threex/threex-arbasecontrols.js"></script>
+	<script src="ar-js/threex/threex-armarkercontrols.js"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/controls/OrbitControls.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/loaders/SVGLoader.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/exporters/OBJExporter.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/exporters/STLExporter.js"></script>
+
+	<script src="potrace.js"></script>
+</head>
+
+<body style='margin : 0px; overflow: hidden; font-family: Monospace;'>
+
+<script>
+
+
+let CURRENT_STEP = 1;
+
+
+var scene, camera, renderer, clock, deltaTime, totalTime;
+
+var arToolkitSource, arToolkitContext;
+
+var markerRoot1, markerRoot2;
+
+var mesh1;
+
+initialize();
+animate();
+
+async function initialize()
+{
+	scene = new THREE.Scene();
+
+	let ambientLight = new THREE.AmbientLight( 0xcccccc, 0.5 );
+	scene.add( ambientLight );
+				
+	camera = new THREE.Camera();
+	//camera.position.z = -100;
+    camera.position.z = 10;
+	scene.add(camera);
+
+	renderer = new THREE.WebGLRenderer({
+		antialias : true,
+		alpha: true
+	});
+	renderer.setClearColor(new THREE.Color('lightgrey'), 0)
+	renderer.setSize( 640, 480 );
+	renderer.domElement.style.position = 'absolute'
+	renderer.domElement.style.top = '0px'
+	renderer.domElement.style.left = '0px'
+	document.body.appendChild( renderer.domElement );
+
+	clock = new THREE.Clock();
+	deltaTime = 0;
+	totalTime = 0;
+
+	arToolkitSource = new THREEx.ArToolkitSource({
+		sourceType : 'webcam',
+	});
+
+	function onResize()
+	{
+		arToolkitSource.onResize()	
+		arToolkitSource.copySizeTo(renderer.domElement)	
+		if ( arToolkitContext.arController !== null )
+		{
+			arToolkitSource.copySizeTo(arToolkitContext.arController.canvas)	
+		}	
+	}
+
+	arToolkitSource.init(function onReady(){
+		onResize()
+	});
+	
+	// handle resize event
+	window.addEventListener('resize', function(){
+		onResize()
+	});
+	
+	arToolkitContext = new THREEx.ArToolkitContext({
+		cameraParametersUrl: 'data/camera_para.dat',
+		detectionMode: 'mono'
+	});
+	
+	// copy projection matrix to camera when initialization complete
+	arToolkitContext.init( function onCompleted(){
+		camera.projectionMatrix.copy( arToolkitContext.getProjectionMatrix() );
+	});
+
+
+	// build markerControls
+	markerRoot1 = new THREE.Group();
+	scene.add(markerRoot1);
+	let markerControls1 = new THREEx.ArMarkerControls(arToolkitContext, markerRoot1, {
+		type: 'pattern', patternUrl: "data/hiro.patt",
+	})
+
+	var a, b, c, d, e, f, g;
+
+	function reloadPotrace(callback) {
+		const script = document.createElement('script');
+		script.src = 'potrace.js';
+		script.onload = callback;
+		document.head.appendChild(script);
+	}
+
+	reloadPotrace(function() {
+		let ahh = Potrace;
+		ahh.loadImageFromUrl("images/a.png");
+		ahh.process(function(){
+			a = ahh.getSVG(1);
+			reloadPotrace(function() {
+				let ahh = Potrace;
+				ahh.loadImageFromUrl("images/b.png");
+				ahh.process(function(){
+					b = ahh.getSVG(1);
+					reloadPotrace(function() {
+						let ahh = Potrace;
+						ahh.loadImageFromUrl("images/c.png");
+						ahh.process(function(){
+							c = ahh.getSVG(1);
+							reloadPotrace(function() {
+								let ahh = Potrace;
+								ahh.loadImageFromUrl("images/d.png");
+								ahh.process(function(){
+									d = ahh.getSVG(1);
+									reloadPotrace(function() {
+										let ahh = Potrace;
+										ahh.loadImageFromUrl("images/e.png");
+										ahh.process(function(){
+											e = ahh.getSVG(1);
+											reloadPotrace(function() {
+												let ahh = Potrace;
+												ahh.loadImageFromUrl("images/f.png");
+												ahh.process(function(){
+													f = ahh.getSVG(1);
+													reloadPotrace(function() {
+														let ahh = Potrace;
+														ahh.loadImageFromUrl("images/g.png");
+														ahh.process(function(){
+															g = ahh.getSVG(1);
+
+															/* Add code here */
+
+															let meshes = [];
+	
+															let subs = [a, b, c, d, e, f, g];
+
+															for (let m=0; m< subs.length; m++) {
+																let curr = subs[m];
+
+																	var textA = `<?xml version="1.0" standalone="no"?>
+																<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
+																"http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+																${curr}`;
+																var dataA = new THREE.SVGLoader().parse( textA );
+
+																var pathsA = dataA.paths;
+
+																var shapesA = [];
+
+																for ( var i = 0; i < pathsA.length; i ++ ) {
+
+																	Array.prototype.push.apply( shapesA, pathsA[ i ].toShapes() ); 
+
+																}
+
+																var extrusionSettingsA = {
+																	depth: 100,
+																	bevelEnabled: false
+																};
+
+																var geometryA = new THREE.ExtrudeBufferGeometry( shapesA, extrusionSettingsA );
+																geometryA.center();
+
+																
+																meshes.push(geometryA)
+															}
+															
+																										
+															if (CURRENT_STEP == 1) {
+																let geometryA = meshes[0];
+																var materialA = new THREE.MeshBasicMaterial({
+																	color: "grey", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshA = new THREE.Mesh( geometryA, materialA );
+																let zoom = 0.05/10;
+																meshA.scale.set(zoom, zoom, zoom);
+																meshA.rotation.x = Math.PI;
+																meshA.position.x = -2;
+
+																markerRoot1.add( meshA);
+
+																let geometryB = meshes[1];
+																var materialB = new THREE.MeshBasicMaterial({
+																	color: "black", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshB = new THREE.Mesh( geometryB, materialB );
+																let zoomB = 0.05/20;
+																meshB.scale.set(zoomB, zoomB, zoomB);
+																meshB.rotation.x = Math.PI;
+																meshB.position.x = 3;
+
+																markerRoot1.add( meshB);
+															} else if (CURRENT_STEP == 2) {
+																let geometryA = meshes[2];
+																var materialA = new THREE.MeshBasicMaterial({
+																	color: "purple", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshA = new THREE.Mesh( geometryA, materialA );
+																let zoom = 0.05/5;
+																meshA.scale.set(zoom, zoom, zoom);
+																meshA.rotation.x = Math.PI;
+																meshA.position.x = -2;
+
+																markerRoot1.add( meshA);
+
+
+																let geometryB = meshes[3];
+																var materialB = new THREE.MeshBasicMaterial({
+																	color: "grey", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshB = new THREE.Mesh( geometryB, materialB );
+																let zoomB = 0.05/8;
+																meshB.scale.set(zoomB, zoomB, zoomB);
+																meshB.rotation.x = Math.PI;
+																meshB.position.y += 0.1;
+																meshB.position.x = 3;
+
+																markerRoot1.add( meshB);
+															} else if (CURRENT_STEP == 3) {
+																let geometryA = meshes[4];
+																var materialA = new THREE.MeshBasicMaterial({
+																	color: "purple", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshA = new THREE.Mesh( geometryA, materialA );
+																let zoom = 0.05/5;
+																meshA.scale.set(zoom, zoom, zoom);
+																meshA.rotation.x = Math.PI;
+																meshA.position.x = -2;
+
+																markerRoot1.add( meshA);
+
+
+
+
+																let geometryB = meshes[5];
+																var materialB = new THREE.MeshBasicMaterial({
+																	color: "blue", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshB = new THREE.Mesh( geometryB, materialB );
+																let zoomB = 0.05/8;
+																meshB.scale.set(zoomB, zoomB, zoomB);
+																meshB.rotation.x = Math.PI;
+																meshB.position.y += 0.1;
+																meshB.position.x = 3;
+
+																markerRoot1.add( meshB);
+
+
+															} else {
+																let geometryA = meshes[6];
+																var materialA = new THREE.MeshBasicMaterial({
+																	color: "green", // White color
+																	opacity: 1, // Fully opaque
+																	transparent: false // Not transparent
+																});
+
+																var meshA = new THREE.Mesh( geometryA, materialA );
+																let zoom = 0.05/5;
+																meshA.scale.set(zoom, zoom, zoom);
+																meshA.rotation.x = Math.PI;
+																meshA.position.x = -2;
+
+																markerRoot1.add( meshA);
+
+															}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+														});
+													});
+												});
+											});
+										});
+									});
+								});
+							});
+						});
+					});
+				});
+			});
+		});
+	});
+
+}
+
+
+function update()
+{
+	if ( arToolkitSource.ready !== false )
+		arToolkitContext.update( arToolkitSource.domElement );
+}
+
+
+function render()
+{
+	renderer.render( scene, camera );
+}
+
+
+let pause = 0;
+
+function animate()
+{
+	requestAnimationFrame(animate);
+	deltaTime = clock.getDelta();
+	totalTime += deltaTime;
+	update();
+	render();
+
+	if (CURRENT_STEP == 1) {
+        let meshB = markerRoot1.children[1];
+		if (meshB.position.x < 1) {
+			meshB.position.x = 3;
+		} else {
+			meshB.position.x -= 0.01;
+		}
+    } else if (CURRENT_STEP == 2) {
+		let meshB = markerRoot1.children[1];
+		if (meshB.position.x < -2) {
+			meshB.position.x = 3;
+		} else {
+			meshB.position.x -= 0.01;
+		}
+	} else if (CURRENT_STEP == 3) {
+		let meshB = markerRoot1.children[1];
+		if (meshB.position.x < 1) {
+			meshB.position.x = 3;
+		} else {
+			meshB.position.x -= 0.01;
+		}
+	} else {
+		let meshB = markerRoot1.children[0];
+	}
+}
+
+</script>
+
+</body>
+</html>

@@ -14,6 +14,11 @@ from flask_cors import CORS
 from pymongo import MongoClient
 import base64, os
 from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory
+import os
+from flask import Flask, request, jsonify
+import base64
+import requests
 
 
 # Initialize Flask app
@@ -101,6 +106,32 @@ def email():
     response = send_email()
     return jsonify(response)
 
+@app.route('/process_image', methods=['POST'])
+def process_image():
+    data = request.json
+    image_data = data.get("image")
+    
+    # Decode the base64 image
+    image_binary = base64.b64decode(image_data)
+    
+    # Here you would call your Gemini API or any processing function
+    # For example, sending the image to the Gemini API:
+    try:
+        url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {YOUR_API_KEY}"  # Add your API key here
+        }
+        payload = {"image": image_data}
+
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        result = response.json()
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/get_data', methods=['GET'])
 def get_image():
     document = collection.find_one()
@@ -126,11 +157,12 @@ def upload_image():
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+@app.route('/')
+def serve_index():
+    print("Serving index.html from:", os.path.abspath('.'))
+    return send_from_directory('.', 'index.html')
 
 
-@app.route('/', methods=['GET'])
-def test():
-    return "HI"
 # Start Flask app
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5111)
+    app.run(host='0.0.0.0', port=5122, debug=True)
