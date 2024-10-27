@@ -8,6 +8,13 @@ from flask_cors import CORS
 import asyncio
 import websockets
 from threading import Thread
+from flask import Flask, request, jsonify
+from datetime import datetime
+from flask_cors import CORS
+from pymongo import MongoClient
+import base64, os
+from dotenv import load_dotenv
+
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -16,12 +23,21 @@ CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["POST", "GET", "OPT
 
 # Store clients connected to WebSocket
 clients = set()
+load_dotenv()
+
+MONGO = os.getenv('MONGO')
+EMAILPWD = os.getenv("emailpwd")
+
+# Connect to MongoDB using your connection string
+client = MongoClient(MONGO)
+db = client['imagedb']
+collection = db['images']
 
 # Email sending function
 def send_email():
     sender_email = "arnavtripathi@gmail.com"
     receiver_email = "royceaden@gmail.com"
-    password = "ikduntvvlnihpqqq"
+    password = EMAILPWD
     
     # Create email message
     message = MIMEMultipart()
@@ -84,6 +100,32 @@ def receive_data():
 def email():
     response = send_email()
     return jsonify(response)
+
+@app.route('/get_data', methods=['GET'])
+def get_image():
+    document = collection.find_one()
+    return jsonify(document['image']) if document else jsonify({'message': 'No document found'})
+
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    try:
+        collection.delete_many({})  
+        base64_image = request.json['image']
+        
+        # Create document to insert
+        document = {
+            "image": base64_image,
+            "timestamp": datetime.utcnow()
+        }
+        
+        # Insert the document
+        result = collection.insert_one(document)
+        
+        return jsonify({"insertedId": str(result.inserted_id)}), 200
+    
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/', methods=['GET'])
