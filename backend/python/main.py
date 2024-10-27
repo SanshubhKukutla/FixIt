@@ -53,12 +53,7 @@ def run_claude(image, prompt):
             }
         ],
     )
-    return message.content[0].textfrom flask import Flask, request, jsonify, send_from_directory
-import os
-from flask import Flask, request, jsonify
-import base64
-import requests
-
+    return message.content[0].text
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -87,8 +82,8 @@ def send_email():
     message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = receiver_email
-    message["Subject"] = "Python Server Email"
-    message.attach(MIMEText("DEMO LINK: https://fixit.pleom.com/ar-code/ar.html", "plain"))
+    message["Subject"] = "Test email from Python Flask Server"
+    message.attach(MIMEText("This is a test email sent from Python running in a Flask server.", "plain"))
     
     try:
         # Send email
@@ -145,34 +140,6 @@ def email():
     response = send_email()
     return jsonify(response)
 
-@app.route('/process_image', methods=['POST'])
-def process_image():
-    data = request.json
-    image_data = data.get("image")
-    
-    # Decode the base64 image
-    image_binary = base64.b64decode(image_data)
-    
-    # Here you would call your Gemini API or any processing function
-    # For example, sending the image to the Gemini API:
-    try:
-        url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer AIzaSyAg216xspoLnCCe1Xn8vRsGw7xk-A76wd4"  # Directly include the API key without additional {}
-        }
-
-        payload = {"image": image_data}
-
-        response = requests.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        result = response.json()
-
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/get_data', methods=['GET'])
 @app.route('/get_data', methods=['POST'])
 def get_image():
 
@@ -199,9 +166,9 @@ def get_image():
         return output
     '''
     history.append(current_prompt) 
-    return jsonify({"body": {
-        "instructions": "okay it's because you did not screw it in properly"
-    }}), 200
+    return jsonify({
+        "body": {"instructions": "okay it's because you did not screw it in"}
+    }), 200
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     try:
@@ -222,10 +189,7 @@ def upload_image():
     except Exception as e:
         print(f"Error: {str(e)}")
         return jsonify({"error": str(e)}), 500
-@app.route('/')
-def serve_index():
-    print("Serving index.html from:", os.path.abspath('.'))
-    return send_from_directory('.', 'index.html')
+
 
 @app.route('/', methods=['GET'])
 def test():
@@ -233,4 +197,4 @@ def test():
 
 # Start Flask app
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5122, debug=True)
+    app.run(host='0.0.0.0', port=5111)
