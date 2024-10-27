@@ -120,8 +120,9 @@ def process_image():
         url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent"
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {"AIzaSyAg216xspoLnCCe1Xn8vRsGw7xk-A76wd4"}"  # Add your API key here
+            "Authorization": f"Bearer AIzaSyAg216xspoLnCCe1Xn8vRsGw7xk-A76wd4"  # Directly include the API key without additional {}
         }
+
         payload = {"image": image_data}
 
         response = requests.post(url, json=payload, headers=headers)
