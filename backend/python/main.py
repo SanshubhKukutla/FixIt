@@ -14,7 +14,46 @@ from flask_cors import CORS
 from pymongo import MongoClient
 import base64, os
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory
+import random
+import anthropic
+import base64
+import PIL.Image
+import PIL.ImageDraw
+import base64
+from io import BytesIO
+from PIL import Image
+
+history = []
+
+
+def run_claude(image, prompt):
+    client = anthropic.Anthropic(api_key="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")
+    image_data = image
+    image_media_type = "image/png"
+    message = client.messages.create(
+        model="claude-3-opus-20240229",
+        max_tokens=1024,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": image_media_type,
+                            "data": image_data,
+                        },
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ],
+            }
+        ],
+    )
+    return message.content[0].textfrom flask import Flask, request, jsonify, send_from_directory
 import os
 from flask import Flask, request, jsonify
 import base64
@@ -134,10 +173,35 @@ def process_image():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get_data', methods=['GET'])
+@app.route('/get_data', methods=['POST'])
 def get_image():
-    document = collection.find_one()
-    return jsonify(document['image']) if document else jsonify({'message': 'No document found'})
 
+    global history
+    data = request.json
+    print(data)
+
+    current_step = 1
+    current_prompt = "user said this"
+    prompt = f"""
+    You are given an image of an instructional manual which contains four steps ordered from top to bottom. The user is currently on {current_step}.
+    You 
+
+    The user recently said the following: {current_prompt}
+    The user also said the following previously as well. {" ".join(history)}
+    """
+
+    print(data)
+    '''
+    image = PIL.Image.open("image.png")
+    with open("image.png", "rb") as image_file:
+        image_data = base64.b64encode(image_file.read()).decode('utf-8')
+        output = run_claude(image_data, prompt)
+        return output
+    '''
+    history.append(current_prompt) 
+    return jsonify({"body": {
+        "instructions": "okay it's because you did not screw it in properly"
+    }}), 200
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     try:
@@ -162,6 +226,10 @@ def upload_image():
 def serve_index():
     print("Serving index.html from:", os.path.abspath('.'))
     return send_from_directory('.', 'index.html')
+
+@app.route('/', methods=['GET'])
+def test():
+    return "Our Server"
 
 # Start Flask app
 if __name__ == '__main__':
