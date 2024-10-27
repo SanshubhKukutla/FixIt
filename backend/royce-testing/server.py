@@ -12,7 +12,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Connect to MongoDB using your connection string
-client = MongoClient()
+client = MongoClient(MONGO)
 db = client['imagedb']
 collection = db['images']
 
