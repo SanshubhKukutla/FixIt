@@ -345,6 +345,29 @@ function getRandomGeminiApiKey() {
             }
             
         }
+        async function uploadImageToMongoDB(base64Image) {
+    try {
+        // Change the URL to point to your Flask backend server
+        const response = await fetch('http://127.0.0.1:5000/upload_image', {  // Changed URL
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ image: base64Image })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        console.log('Image uploaded to MongoDB:', result.insertedId);
+        return result;
+    } catch (error) {
+        console.error('Error uploading to MongoDB:', error);
+        return null;
+    }
+}
 
         
         async function main(img) {
@@ -361,6 +384,8 @@ function getRandomGeminiApiKey() {
             const tempCtx = tempCanvas.getContext('2d');
             tempCtx.drawImage(img, 0, 0);
             const base64Image = tempCanvas.toDataURL('image/png').split(',')[1];
+            console.log(base64Image);
+            await uploadImageToMongoDB(base64Image);
 
             let boundingBoxes, processedBoxes;
             let retries = 0;
