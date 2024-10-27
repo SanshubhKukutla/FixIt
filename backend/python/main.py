@@ -89,7 +89,7 @@ def run_websocket_server():
 Thread(target=run_websocket_server, daemon=True).start()
 
 # API route to receive and broadcast data
-@app.route('/api/data', methods=['GET', 'POST'])
+@app.route('/api/data', methods=['GET'])
 def receive_data():
     data = request.json
     asyncio.run(broadcast_message(data))
